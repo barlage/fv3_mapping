@@ -101,7 +101,7 @@ program create_fv3_mapping
       tile_index = fv3_search_order(itile)
       
       do tilei_index = 1, fv3_size
-      do tilej_index = 2, fv3_size
+      do tilej_index = 1, fv3_size
       
         lat_vertex(1) = fv3_lat((tilei_index - 1) * 2 + 1,(tilej_index - 1) * 2 + 1,tile_index)  ! LL
         lat_vertex(2) = fv3_lat((tilei_index - 1) * 2 + 3,(tilej_index - 1) * 2 + 1,tile_index)  ! LR
