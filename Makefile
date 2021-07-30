@@ -15,6 +15,12 @@
  NETCDFMOD      =       -I/apps/netcdf/4.7.0/intel/18.0.5.274/include
  NETCDFLIB      =       -L/apps/netcdf/4.7.0/intel/18.0.5.274/lib -lnetcdf -lnetcdff
 
+# COMPILERF90    =       gfortran-mp-11
+# FREESOURCE     =       #-ffree-form  -ffree-line-length-none
+# F90FLAGS       =       -fdefault-real-8
+# NETCDFMOD      =       -I/opt/local/include
+# NETCDFLIB      =       -L/opt/local/lib -lnetcdf -lnetcdff
+
 OBJS =	create_fv3_mapping.o
 
 all:	create_fv3_mapping.exe
