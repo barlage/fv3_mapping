@@ -11,7 +11,7 @@
 
  COMPILERF90    =       ifort
  FREESOURCE     =       #-ffree-form  -ffree-line-length-none
- F90FLAGS       =       -init=huge -assume byterecl
+ F90FLAGS       =       -r8
  NETCDFMOD      =       -I/apps/netcdf/4.7.0/intel/18.0.5.274/include
  NETCDFLIB      =       -L/apps/netcdf/4.7.0/intel/18.0.5.274/lib -lnetcdf -lnetcdff
 
