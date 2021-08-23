@@ -5,7 +5,7 @@
 
 # COMPILERF90    =       ifort
 # FREESOURCE     =       #-ffree-form  -ffree-line-length-none
-# F90FLAGS       =       -init=huge -assume byterecl
+# F90FLAGS       =       -r8
 # NETCDFMOD      =       -I/glade/u/apps/ch/opt/netcdf/4.7.4/intel/19.0.5/include
 # NETCDFLIB      =       -L/glade/u/apps/ch/opt/netcdf/4.7.4/intel/19.0.5/lib -lnetcdf -lnetcdff
 
