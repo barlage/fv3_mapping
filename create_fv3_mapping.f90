@@ -209,47 +209,51 @@ program create_fv3_mapping
   ! not found so do a general check with a perturbation
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    print*, "Did not find, add perturbation"
-    
-    lat2find = lat2find + perturb_value
-    lon2find = lon2find + perturb_value
-    
-    do itile = 1, 6
+    if(perturb_source_latlon) then
 
-      tile_index = fv3_search_order(itile)
+      print*, "Did not find, add perturbation"
+    
+      lat2find = lat2find + perturb_value
+      lon2find = lon2find + perturb_value
+    
+      do itile = 1, 6
+
+        tile_index = fv3_search_order(itile)
       
-      do tile_i_index = 1, fv3_size
-      do tile_j_index = 1, fv3_size
+        do tile_i_index = 1, fv3_size
+        do tile_j_index = 1, fv3_size
       
-        lat_vertex(1) = fv3_lat((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 1,tile_index)  ! LL
-        lat_vertex(2) = fv3_lat((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 1,tile_index)  ! LR
-        lat_vertex(3) = fv3_lat((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 3,tile_index)  ! UR
-        lat_vertex(4) = fv3_lat((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 3,tile_index)  ! UL
+          lat_vertex(1) = fv3_lat((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 1,tile_index)  ! LL
+          lat_vertex(2) = fv3_lat((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 1,tile_index)  ! LR
+          lat_vertex(3) = fv3_lat((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 3,tile_index)  ! UR
+          lat_vertex(4) = fv3_lat((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 3,tile_index)  ! UL
       
-        lon_vertex(1) = fv3_lon((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 1,tile_index)  ! LL
-        lon_vertex(2) = fv3_lon((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 1,tile_index)  ! LR
-        lon_vertex(3) = fv3_lon((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 3,tile_index)  ! UR
-        lon_vertex(4) = fv3_lon((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 3,tile_index)  ! UL
+          lon_vertex(1) = fv3_lon((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 1,tile_index)  ! LL
+          lon_vertex(2) = fv3_lon((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 1,tile_index)  ! LR
+          lon_vertex(3) = fv3_lon((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 3,tile_index)  ! UR
+          lon_vertex(4) = fv3_lon((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 3,tile_index)  ! UL
         
-        lat_vertex = lat_vertex * deg2rad
-        lon_vertex = lon_vertex * deg2rad
+          lat_vertex = lat_vertex * deg2rad
+          lon_vertex = lon_vertex * deg2rad
       
-        found = inside_a_polygon(lon2find, lat2find, 4, lon_vertex, lat_vertex)
+          found = inside_a_polygon(lon2find, lat2find, 4, lon_vertex, lat_vertex)
         
-        if(found) then
-          lookup_tile(source_i_index,source_j_index) = tile_index
-          lookup_i   (source_i_index,source_j_index) = tile_i_index
-          lookup_j   (source_i_index,source_j_index) = tile_j_index
-          tile_save = tile_index
-          tile_i_save = tile_i_index
-          tile_j_save = tile_j_index
-          cycle source_j_loop
-        end if
+          if(found) then
+            lookup_tile(source_i_index,source_j_index) = tile_index
+            lookup_i   (source_i_index,source_j_index) = tile_i_index
+            lookup_j   (source_i_index,source_j_index) = tile_j_index
+            tile_save = tile_index
+            tile_i_save = tile_i_index
+            tile_j_save = tile_j_index
+            cycle source_j_loop
+          end if
         
+        end do
+        end do
+      
       end do
-      end do
-      
-    end do
+    
+    end if
     
     if(.not.found) then
       print*, "Did not find in cube sphere:", source_lat(source_i_index, source_j_index), ",", source_lon(source_i_index, source_j_index)
