@@ -3,24 +3,24 @@ program create_fv3_mapping
   use netcdf
   implicit none
   
-  integer, parameter :: source_i_size         = 1024
-  integer, parameter :: source_j_size         = 1024
-  logical            :: source_read           = .true.   ! true if you will read from file, false then set below
-  character*100      :: source_filename       = "/Users/barlage/work/data/ims/ims_latlon.nc"
-  character*100      :: source_latname        = "ims_lat"
-  character*100      :: source_lonname        = "ims_lon"
-  logical            :: include_source_latlon = .true.
-  logical            :: perturb_source_latlon = .true.   ! if lat/lon not found, then add a small value to nudge off boundary
+  integer, parameter :: source_i_size         = 6144
+  integer, parameter :: source_j_size         = 6144
+  integer, parameter :: length = source_i_size*source_j_size*8 
+  character*100      :: ims_path = "/scratch1/NCEPDEV/da/Youlong.Xia/psl_ClaraDraper/imsFV3Mapping/fix/"
+  character*100      :: ims_lat_name = "imslat_4km_8bytes.bin"
+  character*100      :: ims_lon_name = "imslon_4km_8bytes.bin"
+  logical            :: include_source_latlon = .false.
   real, parameter    :: perturb_value         = 1.d-4    ! a small adjustment to lat/lon to find [radians]
-  integer, parameter :: fv3_size = 96
+  integer, parameter :: fv3_size = 48
   integer, parameter :: fv3_grid = fv3_size*2 + 1
-  character*100      :: fv3_path = "/Users/barlage/work/data/C96.mx100_frac/"
-
+  character*100      :: fv3_path = "/scratch1/NCEPDEV/global/glopara/fix/fix_fv3_gmted2010/C48/"
   integer :: fv3_search_order(6) = (/3,1,2,5,6,4/)
   integer :: quick_search_pad = 1
 
-  real   , dimension(source_i_size,source_j_size) :: source_lat, source_lon
+  real   , dimension(source_i_size,source_j_size) :: source_lat, source_lon, source_data
   real   , dimension(fv3_grid,fv3_grid,6)         :: fv3_lat, fv3_lon
+  real   , dimension(fv3_size,fv3_size,6)         :: fv3_lat_cnt, fv3_lon_cnt
+  integer, dimension(fv3_size,fv3_size)           :: fv3_mask
 
   integer, dimension(source_i_size,source_j_size) :: lookup_tile, lookup_i, lookup_j
   
@@ -32,38 +32,29 @@ program create_fv3_mapping
   real    :: lat2find, lon2find
   integer :: ncid, dimid, varid, status   ! netcdf identifiers
   integer :: dim_id_i, dim_id_j           ! netcdf dimension identifiers
+  integer :: dim_id_i_fv3, dim_id_j_fv3, dim_id_t_fv3
+  integer :: i,j,t
   character*100 :: filename
   real, parameter :: deg2rad = 3.1415926535897931/180.0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Read source lat/lon
+! Read IMS lat/lon
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  if(source_read) then
-
-    status = nf90_open(source_filename, NF90_NOWRITE, ncid)
-      if (status /= nf90_noerr) call handle_err(status)
-
-    status = nf90_inq_varid(ncid, source_latname, varid)
-    status = nf90_get_var(ncid, varid , source_lat)
+  filename = trim(ims_path)//trim(ims_lat_name)
+  open(10, file=filename, form='unformatted', access='direct', recl=length)
+  read(10, rec=1) source_data
+  source_lat = -9999.
+  where(abs(source_data) <= 90.) source_lat = source_data
   
-    status = nf90_inq_varid(ncid, source_lonname, varid)
-    status = nf90_get_var(ncid, varid , source_lon)
-
-    status = nf90_close(ncid)
-
-  else
-
-    do source_j_index = 1, source_j_size
-    do source_i_index = 1, source_i_size
-      source_lat(source_i_index,source_j_index) = -90.d0 + 0.5d0*(source_j_index-1)
-      source_lon(source_i_index,source_j_index) =   0.d0 + 0.5d0*(source_i_index-1)
-    end do
-    end do
-
-  end if
-
-
+  filename = trim(ims_path)//trim(ims_lon_name)
+  open(10, file=filename, form='unformatted', access='direct', recl=length)
+  read(10, rec=1) source_data
+  source_lon = -9999.
+  where(abs(source_data) <= 360.) source_lon = source_data
+  where(source_lon < 0.0 .and. source_lon >= -180.0) source_lon = source_lon + 360.0
+!  write(*,*) source_lon(1,1), source_lat(1,1)
+!  stop
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Read FV3 tile information
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -90,10 +81,21 @@ program create_fv3_mapping
   
     status = nf90_inq_varid(ncid, "y", varid)
     status = nf90_get_var(ncid, varid , fv3_lat(:,:,itile))
-  
+
     status = nf90_close(ncid)
 
   end do
+
+! get center of grid cell for output
+
+  do t=1,6
+     do i =1,fv3_size 
+        do j=1,fv3_size 
+                fv3_lon_cnt(i,j,t) = fv3_lon(i*2,j*2,t)
+                fv3_lat_cnt(i,j,t) = fv3_lat(i*2,j*2,t)
+        enddo 
+     enddo
+  enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! loop through the source points
@@ -115,7 +117,7 @@ program create_fv3_mapping
     lon2find = source_lon(source_i_index, source_j_index)
     
     if(lat2find < -90. .or. lat2find > 90.  .or. &
-       lon2find <   0. .or. lon2find > 360.) cycle source_j_loop     ! skip if out of projection
+       lon2find <   0. .or. lon2find > 360.) cycle source_j_loop     ! skip if out of projections
     
     lat2find = deg2rad * lat2find
     lon2find = deg2rad * lon2find
@@ -166,8 +168,6 @@ program create_fv3_mapping
   ! not found so do a general check
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    print*, "Did not find, doing general search"
-    
     do itile = 1, 6
 
       tile_index = fv3_search_order(itile)
@@ -204,57 +204,53 @@ program create_fv3_mapping
       end do
       
     end do
-    
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! not found so do a general check with a perturbation
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    if(perturb_source_latlon) then
+    print*, "Did not find, add perturbation"
+  
+    lat2find = lat2find + perturb_value
+    lon2find = lon2find + perturb_value
+  
+    do itile = 1, 6
 
-      print*, "Did not find, add perturbation"
-    
-      lat2find = lat2find + perturb_value
-      lon2find = lon2find + perturb_value
-    
-      do itile = 1, 6
+      tile_index = fv3_search_order(itile)
 
-        tile_index = fv3_search_order(itile)
-      
-        do tile_i_index = 1, fv3_size
-        do tile_j_index = 1, fv3_size
-      
-          lat_vertex(1) = fv3_lat((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 1,tile_index)  ! LL
-          lat_vertex(2) = fv3_lat((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 1,tile_index)  ! LR
-          lat_vertex(3) = fv3_lat((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 3,tile_index)  ! UR
-          lat_vertex(4) = fv3_lat((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 3,tile_index)  ! UL
-      
-          lon_vertex(1) = fv3_lon((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 1,tile_index)  ! LL
-          lon_vertex(2) = fv3_lon((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 1,tile_index)  ! LR
-          lon_vertex(3) = fv3_lon((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 3,tile_index)  ! UR
-          lon_vertex(4) = fv3_lon((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 3,tile_index)  ! UL
-        
-          lat_vertex = lat_vertex * deg2rad
-          lon_vertex = lon_vertex * deg2rad
-      
-          found = inside_a_polygon(lon2find, lat2find, 4, lon_vertex, lat_vertex)
-        
-          if(found) then
-            lookup_tile(source_i_index,source_j_index) = tile_index
-            lookup_i   (source_i_index,source_j_index) = tile_i_index
-            lookup_j   (source_i_index,source_j_index) = tile_j_index
-            tile_save = tile_index
-            tile_i_save = tile_i_index
-            tile_j_save = tile_j_index
-            cycle source_j_loop
-          end if
-        
-        end do
-        end do
-      
+      do tile_i_index = 1, fv3_size
+      do tile_j_index = 1, fv3_size
+
+        lat_vertex(1) = fv3_lat((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 1,tile_index)  ! LL
+        lat_vertex(2) = fv3_lat((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 1,tile_index)  ! LR
+        lat_vertex(3) = fv3_lat((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 3,tile_index)  ! UR
+        lat_vertex(4) = fv3_lat((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 3,tile_index)  ! UL
+
+        lon_vertex(1) = fv3_lon((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 1,tile_index)  ! LL
+        lon_vertex(2) = fv3_lon((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 1,tile_index)  ! LR
+        lon_vertex(3) = fv3_lon((tile_i_index - 1) * 2 + 3,(tile_j_index - 1) * 2 + 3,tile_index)  ! UR
+        lon_vertex(4) = fv3_lon((tile_i_index - 1) * 2 + 1,(tile_j_index - 1) * 2 + 3,tile_index)  ! UL
+
+        lat_vertex = lat_vertex * deg2rad
+        lon_vertex = lon_vertex * deg2rad
+
+        found = inside_a_polygon(lon2find, lat2find, 4, lon_vertex, lat_vertex)
+  
+        if(found) then
+          lookup_tile(source_i_index,source_j_index) = tile_index
+          lookup_i   (source_i_index,source_j_index) = tile_i_index
+          lookup_j   (source_i_index,source_j_index) = tile_j_index
+          tile_save = tile_index
+          tile_i_save = tile_i_index
+          tile_j_save = tile_j_index
+          cycle source_j_loop
+        end if
+
       end do
-    
-    end if
-    
+      end do
+
+    end do
+   
     if(.not.found) then
       print*, "Did not find in cube sphere:", source_lat(source_i_index, source_j_index), ",", source_lon(source_i_index, source_j_index)
       stop
@@ -265,16 +261,21 @@ program create_fv3_mapping
   end do source_i_loop
 
 
+! get output lat/lon
+
+
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! create the output filename and netcdf file (overwrite old)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if(fv3_size < 100) then
-    write(filename,'(a13,i2,a3)') "fv3_mapping_C", fv3_size, ".nc"
+    write(filename,'(a23,i2,a3)') "IMS4km_to_FV3_mapping_C", fv3_size, ".nc"
   elseif(fv3_size < 1000) then
-    write(filename,'(a13,i3,a3)') "fv3_mapping_C", fv3_size, ".nc"
+    write(filename,'(a23,i3,a3)') "IMS4km_to_FV3_mapping_C", fv3_size, ".nc"
   elseif(fv3_size < 10000) then
-    write(filename,'(a13,i4,a3)') "fv3_mapping_C", fv3_size, ".nc"
+    write(filename,'(a23,i4,a3)') "IMS4km_to_fv3_mapping_C", fv3_size, ".nc"
   else
     stop "unknown fv3 size"
   end if
@@ -288,10 +289,18 @@ program create_fv3_mapping
     if (status /= nf90_noerr) call handle_err(status)
   status = nf90_def_dim(ncid, "jdim"   , source_j_size , dim_id_j)
     if (status /= nf90_noerr) call handle_err(status)
+
+! fv3 lat/lon
+  status = nf90_def_dim(ncid, "idim_fv3"   , fv3_size , dim_id_i_fv3)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_def_dim(ncid, "jdim_fv3"   , fv3_size , dim_id_j_fv3)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_def_dim(ncid, "tdim_fv3"   , 6 , dim_id_t_fv3)
+    if (status /= nf90_noerr) call handle_err(status)
   
 ! Define variables in the file.
 
-  status = nf90_def_var(ncid, "tile", NF90_INT, (/dim_id_i, dim_id_j/), varid)
+  status = nf90_def_var(ncid, "tile", NF90_INT, (/dim_id_j, dim_id_i/), varid)
     if (status /= nf90_noerr) call handle_err(status)
 
     status = nf90_put_att(ncid, varid, "long_name", "fv3 tile location")
@@ -299,7 +308,7 @@ program create_fv3_mapping
     status = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (status /= nf90_noerr) call handle_err(status)
 
-  status = nf90_def_var(ncid, "tile_i", NF90_INT, (/dim_id_i, dim_id_j/), varid)
+  status = nf90_def_var(ncid, "tile_i", NF90_INT, (/dim_id_j, dim_id_i/), varid)
     if (status /= nf90_noerr) call handle_err(status)
 
     status = nf90_put_att(ncid, varid, "long_name", "fv3 i location in tile")
@@ -307,7 +316,7 @@ program create_fv3_mapping
     status = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (status /= nf90_noerr) call handle_err(status)
 
-  status = nf90_def_var(ncid, "tile_j", NF90_INT, (/dim_id_i, dim_id_j/), varid)
+  status = nf90_def_var(ncid, "tile_j", NF90_INT, (/dim_id_j, dim_id_i/), varid)
     if (status /= nf90_noerr) call handle_err(status)
 
     status = nf90_put_att(ncid, varid, "long_name", "fv3 j location in tile")
@@ -315,20 +324,36 @@ program create_fv3_mapping
     status = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (status /= nf90_noerr) call handle_err(status)
 
- if(include_source_latlon) then
-
-  status = nf90_def_var(ncid, "source_lat", NF90_FLOAT, (/dim_id_i, dim_id_j/), varid)
+  status = nf90_def_var(ncid, "lon_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
     if (status /= nf90_noerr) call handle_err(status)
 
-    status = nf90_put_att(ncid, varid, "long_name", "source latitude")
+    status = nf90_put_att(ncid, varid, "long_name", "longitude fv3 grid")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999)
+      if (status /= nf90_noerr) call handle_err(status)
+
+  status = nf90_def_var(ncid, "lat_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
+
+    status = nf90_put_att(ncid, varid, "long_name", "latitude fv3 grid")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999)
+      if (status /= nf90_noerr) call handle_err(status)
+
+ if(include_source_latlon) then
+
+  status = nf90_def_var(ncid, "ims_lat", NF90_FLOAT, (/dim_id_j, dim_id_i/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
+
+    status = nf90_put_att(ncid, varid, "long_name", "ims latitude")
       if (status /= nf90_noerr) call handle_err(status)
     status = nf90_put_att(ncid, varid, "missing_value", -9999.)
       if (status /= nf90_noerr) call handle_err(status)
 
-  status = nf90_def_var(ncid, "source_lon", NF90_FLOAT, (/dim_id_i, dim_id_j/), varid)
+  status = nf90_def_var(ncid, "ims_lon", NF90_FLOAT, (/dim_id_j, dim_id_i/), varid)
     if (status /= nf90_noerr) call handle_err(status)
 
-    status = nf90_put_att(ncid, varid, "long_name", "source longitude")
+    status = nf90_put_att(ncid, varid, "long_name", "ims longitude")
       if (status /= nf90_noerr) call handle_err(status)
     status = nf90_put_att(ncid, varid, "missing_value", -9999.)
       if (status /= nf90_noerr) call handle_err(status)
@@ -352,14 +377,24 @@ program create_fv3_mapping
   status = nf90_put_var(ncid, varid , lookup_j)
     if (status /= nf90_noerr) call handle_err(status)
 
+  status = nf90_inq_varid(ncid, "lon_fv3", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , fv3_lon_cnt)
+    if (status /= nf90_noerr) call handle_err(status)
+
+  status = nf90_inq_varid(ncid, "lat_fv3", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , fv3_lat_cnt)
+    if (status /= nf90_noerr) call handle_err(status)
+
  if(include_source_latlon) then
 
-  status = nf90_inq_varid(ncid, "source_lat", varid)
+  status = nf90_inq_varid(ncid, "ims_lat", varid)
     if (status /= nf90_noerr) call handle_err(status)
   status = nf90_put_var(ncid, varid , source_lat)
     if (status /= nf90_noerr) call handle_err(status)
 
-  status = nf90_inq_varid(ncid, "source_lon", varid)
+  status = nf90_inq_varid(ncid, "ims_lon", varid)
     if (status /= nf90_noerr) call handle_err(status)
   status = nf90_put_var(ncid, varid , source_lon)
     if (status /= nf90_noerr) call handle_err(status)
