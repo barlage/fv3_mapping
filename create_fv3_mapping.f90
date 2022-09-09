@@ -7,7 +7,7 @@ program create_fv3_mapping
   integer            :: tile_dim 
   character*100      :: tile_path 
   character*20       :: otype ! orography filename stub. For atm only, oro_C${RES}, for atm/ocean oro_C${RES}.mx100
-  character*5        :: obs_source
+  character*10        :: obs_source
 
   logical :: file_exists 
 
@@ -15,7 +15,7 @@ program create_fv3_mapping
   integer, parameter :: source_i_size         = 6144
   integer, parameter :: source_j_size         = 6144
   integer, parameter :: length = source_i_size*source_j_size*8 
-  character*100      :: ims_path = "/scratch1/NCEPDEV/da/Youlong.Xia/psl_ClaraDraper/imsFV3Mapping/fix/"
+  character*100      :: ims_path = "/scratch2/NCEPDEV/land/data/DA/snow_ice_cover/IMS/fix_coords/"
   character*100      :: ims_lat_name = "imslat_4km_8bytes.bin"
   character*100      :: ims_lon_name = "imslon_4km_8bytes.bin"
 
@@ -56,7 +56,7 @@ program create_fv3_mapping
 ! read namelist
  
 ! defaults
- obs_source = "IMS  "
+ obs_source = "IMS4km"
  
  inquire(file='fv3_mapping.nml', exist=file_exists)
 
@@ -81,21 +81,22 @@ program create_fv3_mapping
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Read IMS lat/lon
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
+  if ( obs_source(1:3)=="IMS" ) then 
+      filename = trim(ims_path)//trim(ims_lat_name)
+      open(10, file=filename, form='unformatted', access='direct', recl=length)
+      read(10, rec=1) source_data
+      source_lat = -9999.
+      where(abs(source_data) <= 90.) source_lat = source_data
+      
+      filename = trim(ims_path)//trim(ims_lon_name)
+      open(10, file=filename, form='unformatted', access='direct', recl=length)
+      read(10, rec=1) source_data
+      source_lon = -9999.
+      where(abs(source_data) <= 360.) source_lon = source_data
+      where(source_lon < 0.0 .and. source_lon >= -180.0) source_lon = source_lon + 360.0
+   endif
 
-  filename = trim(ims_path)//trim(ims_lat_name)
-  open(10, file=filename, form='unformatted', access='direct', recl=length)
-  read(10, rec=1) source_data
-  source_lat = -9999.
-  where(abs(source_data) <= 90.) source_lat = source_data
-  
-  filename = trim(ims_path)//trim(ims_lon_name)
-  open(10, file=filename, form='unformatted', access='direct', recl=length)
-  read(10, rec=1) source_data
-  source_lon = -9999.
-  where(abs(source_data) <= 360.) source_lon = source_data
-  where(source_lon < 0.0 .and. source_lon >= -180.0) source_lon = source_lon + 360.0
-!  write(*,*) source_lon(1,1), source_lat(1,1)
-!  stop
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Read FV3 tile information
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -313,16 +314,8 @@ program create_fv3_mapping
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! create the output filename and netcdf file (overwrite old)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  if(tile_dim < 100) then
-    write(filename,'(a23,i2,a3)') "IMS4km_to_FV3_mapping_C", tile_dim, ".nc"
-  elseif(tile_dim < 1000) then
-    write(filename,'(a23,i3,a3)') "IMS4km_to_FV3_mapping_C", tile_dim, ".nc"
-  elseif(tile_dim < 10000) then
-    write(filename,'(a23,i4,a3)') "IMS4km_to_fv3_mapping_C", tile_dim, ".nc"
-  else
-    stop "unknown fv3 size"
-  end if
+ 
+  filename=trim(obs_source)//"_to_FV3_mapping."//trim(otype)//".nc"
 
   ierr = nf90_create(filename, NF90_CLOBBER, ncid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
