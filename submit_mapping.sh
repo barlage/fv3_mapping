@@ -10,6 +10,8 @@
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 
+source mods_bash 
+
 ./create_fv3_mapping.exe
 
 
