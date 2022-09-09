@@ -1,0 +1,5 @@
+&fv3_mapping_nml 
+ tile_dim=96
+ otype="oro_C96.mx100"
+ tile_path="/scratch2/BMC/gsienkf/Clara.Draper/data_RnR/orog_files_Mike/"
+/
