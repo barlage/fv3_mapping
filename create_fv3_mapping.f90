@@ -109,7 +109,6 @@ program create_fv3_mapping
     write(tilestr,'(a5,i1,a3)')  ".tile", itile, ".nc"
 
     filename = trim(tile_path)//"/C"//trim(adjustl(dimstr))//"_grid"//tilestr
-    write(6,*) 'CSD filename', filename
 
     ierr = nf90_open(filename, NF90_NOWRITE, ncid)
       if (ierr /= nf90_noerr) call handle_err(ierr)
@@ -125,7 +124,6 @@ program create_fv3_mapping
     ! get orography
 
     filename = trim(tile_path)//"/"//trim(otype)//tilestr
-    write(6,*) 'CSD filename', filename
 
     ierr = nf90_open(filename, NF90_NOWRITE, ncid)
       if (ierr /= nf90_noerr) call handle_err(ierr)
@@ -366,13 +364,11 @@ program create_fv3_mapping
   ierr = nf90_def_var(ncid, "lon_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  write(6,*) 'CSD1'
     ierr = nf90_put_att(ncid, varid, "long_name", "longitude fv3 grid")
       if (ierr /= nf90_noerr) call handle_err(ierr)
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  write(6,*) 'CSD2'
   ierr = nf90_def_var(ncid, "lat_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
@@ -381,7 +377,6 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  write(6,*) 'CSD3'
   ierr = nf90_def_var(ncid, "oro_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
@@ -390,7 +385,6 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  write(6,*) 'CSD4'
  if(include_source_latlon) then
 
   ierr = nf90_def_var(ncid, "ims_lat", NF90_FLOAT, (/dim_id_j, dim_id_i/), varid)
@@ -413,7 +407,6 @@ program create_fv3_mapping
 
   ierr = nf90_enddef(ncid)
 
-  write(6,*) 'CSD5'
   ierr = nf90_inq_varid(ncid, "tile", varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
   ierr = nf90_put_var(ncid, varid , lookup_tile)
@@ -429,26 +422,21 @@ program create_fv3_mapping
   ierr = nf90_put_var(ncid, varid , lookup_j)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  write(6,*) 'CSD6', tile_length
-  write(6,*) 'CSD6 - lon ', shape(fv3_lon_cnt) 
   ierr = nf90_inq_varid(ncid, "lon_fv3", varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
   ierr = nf90_put_var(ncid, varid , fv3_lon_cnt)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  write(6,*) 'CSD6 - lat', shape(fv3_lat_cnt) 
   ierr = nf90_inq_varid(ncid, "lat_fv3", varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
   ierr = nf90_put_var(ncid, varid , fv3_lat_cnt)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  write(6,*) 'CSD6 - oro', shape(fv3_oro) 
   ierr = nf90_inq_varid(ncid, "oro_fv3", varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
   ierr = nf90_put_var(ncid, varid , fv3_oro)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  write(6,*) 'CSD7'
  if(include_source_latlon) then
 
   ierr = nf90_inq_varid(ncid, "ims_lat", varid)
@@ -463,7 +451,6 @@ program create_fv3_mapping
   
  end if
 
-  write(6,*) 'CSD8'
  ierr = nf90_close(ncid)
 
 end program
