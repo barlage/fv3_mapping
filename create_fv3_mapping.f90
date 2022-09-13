@@ -6,6 +6,7 @@ program create_fv3_mapping
 ! namelist vars 
   integer            :: tile_dim 
   character*100      :: tile_path 
+  character*100      :: orog_path 
   character*20       :: otype ! orography filename stub. For atm only, oro_C${RES}, for atm/ocean oro_C${RES}.mx100
   character*10        :: obs_source
   integer             :: source_i_size ! size of input data 
@@ -42,12 +43,12 @@ program create_fv3_mapping
   integer :: dim_id_i, dim_id_j           ! netcdf dimension identifiers
   integer :: dim_id_i_fv3, dim_id_j_fv3, dim_id_t_fv3
   integer :: i,j,t, io
-  character*100 :: filename
+  character*250 :: filename
   character*9 :: tilestr
   character*20 :: dimstr
   real, parameter :: deg2rad = 3.1415926535897931/180.0
 
-  namelist/fv3_mapping_nml/ tile_dim, tile_path, otype, obs_source, source_i_size, source_j_size
+  namelist/fv3_mapping_nml/ tile_dim, tile_path, orog_path, otype, obs_source, source_i_size, source_j_size
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Setup inputs and read namelist
@@ -116,6 +117,7 @@ program create_fv3_mapping
     write(tilestr,'(a5,i1,a3)')  ".tile", itile, ".nc"
 
     filename = trim(tile_path)//"/C"//trim(adjustl(dimstr))//"_grid"//tilestr
+    write(6,*) 'Reading in tile file' , filename
 
     ierr = nf90_open(filename, NF90_NOWRITE, ncid)
       if (ierr /= nf90_noerr) call handle_err(ierr)
@@ -130,7 +132,8 @@ program create_fv3_mapping
 
     ! get orography
 
-    filename = trim(tile_path)//"/"//trim(otype)//tilestr
+    filename = trim(orog_path)//"/"//trim(otype)//tilestr
+    write(6,*) 'Reading in orog file' , filename
 
     ierr = nf90_open(filename, NF90_NOWRITE, ncid)
       if (ierr /= nf90_noerr) call handle_err(ierr)
