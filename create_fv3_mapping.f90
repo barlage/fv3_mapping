@@ -8,13 +8,13 @@ program create_fv3_mapping
   character*100      :: tile_path 
   character*20       :: otype ! orography filename stub. For atm only, oro_C${RES}, for atm/ocean oro_C${RES}.mx100
   character*10        :: obs_source
+  integer             :: source_i_size ! size of input data 
+  integer             :: source_j_size
 
   logical :: file_exists 
 
 ! IMS input info
-  integer, parameter :: source_i_size         = 6144
-  integer, parameter :: source_j_size         = 6144
-  integer, parameter :: length = source_i_size*source_j_size*8 
+  integer             :: length ! binary file recl
   character*100      :: ims_path = "/scratch2/NCEPDEV/land/data/DA/snow_ice_cover/IMS/fix_coords/"
   character*100      :: ims_lat_name = "imslat_4km_8bytes.bin"
   character*100      :: ims_lon_name = "imslon_4km_8bytes.bin"
@@ -25,12 +25,12 @@ program create_fv3_mapping
   integer :: fv3_search_order(6) = (/3,1,2,5,6,4/)
   integer :: quick_search_pad = 1
 
-  real   , dimension(source_i_size,source_j_size) :: source_lat, source_lon, source_data
   real   , allocatable, dimension(:,:,:)          :: fv3_lat, fv3_lon 
   real   , allocatable, dimension(:,:,:)          :: fv3_lat_cnt, fv3_lon_cnt, fv3_oro
   integer, allocatable, dimension(:,:)            :: fv3_mask
 
-  integer, dimension(source_i_size,source_j_size) :: lookup_tile, lookup_i, lookup_j
+  integer, allocatable, dimension(:,:) :: lookup_tile, lookup_i, lookup_j
+  real   , allocatable, dimension(:,:) :: source_lat, source_lon, source_data
   
   real, dimension(4) :: lat_vertex, lon_vertex
   
@@ -47,7 +47,7 @@ program create_fv3_mapping
   character*20 :: dimstr
   real, parameter :: deg2rad = 3.1415926535897931/180.0
 
-  namelist/fv3_mapping_nml/ tile_dim, tile_path, otype, obs_source
+  namelist/fv3_mapping_nml/ tile_dim, tile_path, otype, obs_source, source_i_size, source_j_size
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Setup inputs and read namelist
@@ -56,7 +56,6 @@ program create_fv3_mapping
 ! read namelist
  
 ! defaults
- obs_source = "IMS4km"
  
  inquire(file='fv3_mapping.nml', exist=file_exists)
 
@@ -78,12 +77,20 @@ program create_fv3_mapping
  allocate(fv3_oro(tile_dim,tile_dim,6))
  allocate(fv3_mask(tile_dim,tile_dim))
 
+ allocate(lookup_tile(source_i_size,source_j_size))  
+ allocate(lookup_i(source_i_size,source_j_size))
+ allocate(lookup_j(source_i_size,source_j_size))
+ allocate(source_lat(source_i_size,source_j_size))
+ allocate(source_lon(source_i_size,source_j_size))
+ allocate(source_data(source_i_size,source_j_size))
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Read IMS lat/lon
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
   if ( obs_source(1:3)=="IMS" ) then 
       write(6,*) 'Reading in IMS coordinate info' 
+      length = source_i_size*source_j_size*8  + 1
       filename = trim(ims_path)//trim(ims_lat_name)
       open(10, file=filename, form='unformatted', access='direct', recl=length)
       read(10, rec=1) source_data
@@ -167,7 +174,8 @@ program create_fv3_mapping
     
     if(lat2find < -90. .or. lat2find > 90.  .or. &
        lon2find <   0. .or. lon2find > 360.) cycle source_j_loop     ! skip if out of projections
-    
+   
+    ! input is in degrees. 
     lat2find = deg2rad * lat2find
     lon2find = deg2rad * lon2find
     
