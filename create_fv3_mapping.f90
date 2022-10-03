@@ -20,6 +20,10 @@ program create_fv3_mapping
   character*100      :: ims_lat_name = "imslat_4km_8bytes.bin"
   character*100      :: ims_lon_name = "imslon_4km_8bytes.bin"
 
+! SMAP input info
+  character*100      :: smap_path = "/scratch2/BMC/gsienkf/Zofia.Stanley/projects/fv3_mapping/"
+  character*100      :: smap_file_name = "NSIDC0772_LatLon_EASE2_M09km_v1.0.nc"
+
   logical            :: include_source_latlon = .false.
   real, parameter    :: perturb_value         = 1.d-4    ! a small adjustment to lat/lon to find [radians]
   integer            :: tile_length
@@ -105,6 +109,31 @@ program create_fv3_mapping
       where(abs(source_data) <= 360.) source_lon = source_data
       where(source_lon < 0.0 .and. source_lon >= -180.0) source_lon = source_lon + 360.0
    endif
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Read SMAP lat/lon 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  if ( obs_source(1:4)=="SMAP" ) then
+
+      write(6,*) 'Reading in SMAP coordinate info'
+
+      filename = trim(smap_path)//trim(smap_file_name)
+
+      ierr = nf90_open(filename, NF90_NOWRITE, ncid)
+        if (ierr /= nf90_noerr) call handle_err(ierr)
+
+      ierr = nf90_inq_varid(ncid, "longitude", varid)
+      ierr = nf90_get_var(ncid, varid , source_lon)
+      where(source_lon < 0.0 .and. source_lon >= -180.0) source_lon = source_lon + 360.0
+
+      ierr = nf90_inq_varid(ncid, "latitude", varid)
+      ierr = nf90_get_var(ncid, varid , source_lat)
+
+      ierr = nf90_close(ncid)
+
+  endif
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Read FV3 tile information
