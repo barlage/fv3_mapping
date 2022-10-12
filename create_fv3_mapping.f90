@@ -124,11 +124,18 @@ program create_fv3_mapping
         if (ierr /= nf90_noerr) call handle_err(ierr)
 
       ierr = nf90_inq_varid(ncid, "longitude", varid)
+        if(ierr /= nf90_noerr) call handle_err(ierr)
+      
       ierr = nf90_get_var(ncid, varid , source_lon)
+        if(ierr /= nf90_noerr) call handle_err(ierr)
+      
       where(source_lon < 0.0 .and. source_lon >= -180.0) source_lon = source_lon + 360.0
 
       ierr = nf90_inq_varid(ncid, "latitude", varid)
+        if(ierr /= nf90_noerr) call handle_err(ierr)
+      
       ierr = nf90_get_var(ncid, varid , source_lat)
+        if(ierr /= nf90_noerr) call handle_err(ierr)
 
       ierr = nf90_close(ncid)
 
@@ -377,7 +384,7 @@ program create_fv3_mapping
   
 ! Define variables in the file.
 
-  ierr = nf90_def_var(ncid, "tile", NF90_INT, (/dim_id_j, dim_id_i/), varid)
+  ierr = nf90_def_var(ncid, "tile", NF90_INT, (/dim_id_i, dim_id_j/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "fv3 tile location")
@@ -385,7 +392,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "tile_i", NF90_INT, (/dim_id_j, dim_id_i/), varid)
+  ierr = nf90_def_var(ncid, "tile_i", NF90_INT, (/dim_id_i, dim_id_j/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "fv3 i location in tile")
@@ -393,7 +400,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "tile_j", NF90_INT, (/dim_id_j, dim_id_i/), varid)
+  ierr = nf90_def_var(ncid, "tile_j", NF90_INT, (/dim_id_i, dim_id_j/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "fv3 j location in tile")
@@ -476,7 +483,7 @@ program create_fv3_mapping
     if (ierr /= nf90_noerr) call handle_err(ierr)
   ierr = nf90_put_var(ncid, varid , fv3_oro)
     if (ierr /= nf90_noerr) call handle_err(ierr)
-
+  
  if(include_source_latlon) then
 
   ierr = nf90_inq_varid(ncid, "ims_lat", varid)
