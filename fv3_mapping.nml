@@ -1,8 +1,8 @@
 &fv3_mapping_nml 
- tile_dim=96
- otype="C96_oro_data"
- orog_path="/scratch2/NCEPDEV/land/data/fix/C96/"
- tile_path="/scratch2/NCEPDEV/land/data/fix/C96/"
+ tile_dim=384
+ otype="oro_C384.mx025"
+ orog_path="/scratch1/NCEPDEV/nems/emc.nemspara/RT/NEMSfv3gfs/input-data-20220414/FV3_fix_tiled/C384/"
+ tile_path="/scratch1/NCEPDEV/nems/emc.nemspara/RT/NEMSfv3gfs/input-data-20220414/FV3_input_data384/INPUT/"
  obs_source="IMS4km" 
  source_i_size=6144 
  source_j_size=6144
