@@ -22,7 +22,7 @@ program create_fv3_mapping
 
 ! SMAP input info
   character*100      :: smap_path = "/scratch2/BMC/gsienkf/Zofia.Stanley/projects/fv3_mapping/"
-  character*100      :: smap_file_name = "NSIDC0772_LatLon_EASE2_M09km_v1.0.nc"
+  character*100      :: smap_latlon_name = "NSIDC0772_LatLon_EASE2_M09km_v1.0.nc"
 
   logical            :: include_source_latlon = .false.
   real, parameter    :: perturb_value         = 1.d-4    ! a small adjustment to lat/lon to find [radians]
@@ -118,7 +118,7 @@ program create_fv3_mapping
 
       write(6,*) 'Reading in SMAP coordinate info'
 
-      filename = trim(smap_path)//trim(smap_file_name)
+      filename = trim(smap_path)//trim(smap_latlon_name)
 
       ierr = nf90_open(filename, NF90_NOWRITE, ncid)
         if (ierr /= nf90_noerr) call handle_err(ierr)
