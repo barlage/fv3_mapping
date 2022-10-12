@@ -3,7 +3,7 @@
  otype="C96_oro_data"
  orog_path="/scratch2/NCEPDEV/land/data/fix/C96/"
  tile_path="/scratch2/NCEPDEV/land/data/fix/C96/"
- obs_source="SMAP9km" 
- source_i_size=3856 
- source_j_size=1624
+ obs_source="IMS4km" 
+ source_i_size=6144 
+ source_j_size=6144
 /
