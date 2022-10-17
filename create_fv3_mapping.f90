@@ -408,7 +408,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "lon_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
+  ierr = nf90_def_var(ncid, "lon_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "longitude fv3 grid")
@@ -416,7 +416,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "lat_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
+  ierr = nf90_def_var(ncid, "lat_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "latitude fv3 grid")
@@ -424,7 +424,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "oro_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
+  ierr = nf90_def_var(ncid, "oro_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "orography fv3 grid")
@@ -434,7 +434,7 @@ program create_fv3_mapping
 
  if(include_source_latlon) then
 
-  ierr = nf90_def_var(ncid, "ims_lat", NF90_FLOAT, (/dim_id_j, dim_id_i/), varid)
+  ierr = nf90_def_var(ncid, "ims_lat", NF90_FLOAT, (/dim_id_i, dim_id_j/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "ims latitude")
@@ -442,7 +442,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999.)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "ims_lon", NF90_FLOAT, (/dim_id_j, dim_id_i/), varid)
+  ierr = nf90_def_var(ncid, "ims_lon", NF90_FLOAT, (/dim_id_i, dim_id_j/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "ims longitude")
