@@ -21,7 +21,7 @@ program create_fv3_mapping
   character*100      :: ims_lon_name = "imslon_4km_8bytes.bin"
 
 ! SMAP input info
-  character*100      :: smap_path = "/scratch2/BMC/gsienkf/Zofia.Stanley/projects/fv3_mapping/"
+  character*100      :: smap_path = "/scratch2/NCEPDEV/land/data/DA/soil_moisture/SMAP/fix_coords/"  
   character*100      :: smap_latlon_name = "NSIDC0772_LatLon_EASE2_M09km_v1.0.nc"
 
   logical            :: include_source_latlon = .false.
