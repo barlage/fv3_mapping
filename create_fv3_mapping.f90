@@ -11,15 +11,15 @@ program create_fv3_mapping
   character*100      :: ims_lon_name = "imslon_4km_8bytes.bin"
   logical            :: include_source_latlon = .false.
   real, parameter    :: perturb_value         = 1.d-4    ! a small adjustment to lat/lon to find [radians]
-  integer, parameter :: fv3_size = 48
+  integer, parameter :: fv3_size = 768
   integer, parameter :: fv3_grid = fv3_size*2 + 1
-  character*100      :: fv3_path = "/scratch1/NCEPDEV/global/glopara/fix/fix_fv3_gmted2010/C48/"
+  character*100      :: fv3_path = "/scratch1/NCEPDEV/global/glopara/fix/fix_fv3_gmted2010/C768/"
   integer :: fv3_search_order(6) = (/3,1,2,5,6,4/)
   integer :: quick_search_pad = 1
 
   real   , dimension(source_i_size,source_j_size) :: source_lat, source_lon, source_data
-  real   , dimension(fv3_grid,fv3_grid,6)         :: fv3_lat, fv3_lon
-  real   , dimension(fv3_size,fv3_size,6)         :: fv3_lat_cnt, fv3_lon_cnt
+  real   , dimension(fv3_grid,fv3_grid,6)         :: fv3_lat, fv3_lon 
+  real   , dimension(fv3_size,fv3_size,6)         :: fv3_lat_cnt, fv3_lon_cnt, fv3_oro
   integer, dimension(fv3_size,fv3_size)           :: fv3_mask
 
   integer, dimension(source_i_size,source_j_size) :: lookup_tile, lookup_i, lookup_j
@@ -81,6 +81,28 @@ program create_fv3_mapping
   
     status = nf90_inq_varid(ncid, "y", varid)
     status = nf90_get_var(ncid, varid , fv3_lat(:,:,itile))
+
+    status = nf90_close(ncid)
+
+    ! get orography
+    if(fv3_size < 100) then
+      write(filename,'(a1,i2,a14,i1,a3)') "C", fv3_size, "_oro_data.tile", itile, ".nc"
+    elseif(fv3_size < 1000) then
+      write(filename,'(a1,i3,a14,i1,a3)') "C", fv3_size, "_oro_data.tile", itile, ".nc"
+    elseif(fv3_size < 10000) then
+      write(filename,'(a1,i4,a14,i1,a3)') "C", fv3_size, "_oro_data.tile", itile, ".nc"
+    else
+      stop "unknown fv3 size"
+    end if
+
+    filename = trim(fv3_path)//trim(filename)
+    print *, 'CSD ', trim(filename)
+
+    status = nf90_open(filename, NF90_NOWRITE, ncid)
+      if (status /= nf90_noerr) call handle_err(status)
+
+    status = nf90_inq_varid(ncid, "orog_filt", varid)
+    status = nf90_get_var(ncid, varid , fv3_oro(:,:,itile))
 
     status = nf90_close(ncid)
 
@@ -261,11 +283,6 @@ program create_fv3_mapping
   end do source_i_loop
 
 
-! get output lat/lon
-
-
-
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! create the output filename and netcdf file (overwrite old)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -340,6 +357,14 @@ program create_fv3_mapping
     status = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (status /= nf90_noerr) call handle_err(status)
 
+  status = nf90_def_var(ncid, "oro_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
+
+    status = nf90_put_att(ncid, varid, "long_name", "orography fv3 grid")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999)
+      if (status /= nf90_noerr) call handle_err(status)
+
  if(include_source_latlon) then
 
   status = nf90_def_var(ncid, "ims_lat", NF90_FLOAT, (/dim_id_j, dim_id_i/), varid)
@@ -385,6 +410,11 @@ program create_fv3_mapping
   status = nf90_inq_varid(ncid, "lat_fv3", varid)
     if (status /= nf90_noerr) call handle_err(status)
   status = nf90_put_var(ncid, varid , fv3_lat_cnt)
+    if (status /= nf90_noerr) call handle_err(status)
+
+  status = nf90_inq_varid(ncid, "oro_fv3", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , fv3_oro)
     if (status /= nf90_noerr) call handle_err(status)
 
  if(include_source_latlon) then
