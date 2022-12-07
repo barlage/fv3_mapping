@@ -18,6 +18,10 @@ program create_fv3_mapping
   character*100      :: ims_lat_name
   character*100      :: ims_lon_name 
 
+! SMAP input info
+  character*100      :: smap_path = "/scratch2/NCEPDEV/land/data/DA/soil_moisture/SMAP/fix_coords/"  
+  character*100      :: smap_latlon_name = "NSIDC0772_LatLon_EASE2_M09km_v1.0.nc"
+
   logical            :: include_source_latlon = .false.
   real, parameter    :: perturb_value         = 1.d-4    ! a small adjustment to lat/lon to find [radians]
   integer            :: tile_length
@@ -120,6 +124,38 @@ program create_fv3_mapping
       where(abs(source_data) <= 360.) source_lon = source_data
       where(source_lon < 0.0 .and. source_lon >= -180.0) source_lon = source_lon + 360.0
    endif
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Read SMAP lat/lon 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  if ( obs_source(1:4)=="SMAP" ) then
+
+      write(6,*) 'Reading in SMAP coordinate info'
+
+      filename = trim(smap_path)//trim(smap_latlon_name)
+
+      ierr = nf90_open(filename, NF90_NOWRITE, ncid)
+        if (ierr /= nf90_noerr) call handle_err(ierr)
+
+      ierr = nf90_inq_varid(ncid, "longitude", varid)
+        if(ierr /= nf90_noerr) call handle_err(ierr)
+      
+      ierr = nf90_get_var(ncid, varid , source_lon)
+        if(ierr /= nf90_noerr) call handle_err(ierr)
+      
+      where(source_lon < 0.0 .and. source_lon >= -180.0) source_lon = source_lon + 360.0
+
+      ierr = nf90_inq_varid(ncid, "latitude", varid)
+        if(ierr /= nf90_noerr) call handle_err(ierr)
+      
+      ierr = nf90_get_var(ncid, varid , source_lat)
+        if(ierr /= nf90_noerr) call handle_err(ierr)
+
+      ierr = nf90_close(ncid)
+
+  endif
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Read FV3 tile information
@@ -363,7 +399,7 @@ program create_fv3_mapping
   
 ! Define variables in the file.
 
-  ierr = nf90_def_var(ncid, "tile", NF90_INT, (/dim_id_j, dim_id_i/), varid)
+  ierr = nf90_def_var(ncid, "tile", NF90_INT, (/dim_id_i, dim_id_j/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "fv3 tile location")
@@ -371,7 +407,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "tile_i", NF90_INT, (/dim_id_j, dim_id_i/), varid)
+  ierr = nf90_def_var(ncid, "tile_i", NF90_INT, (/dim_id_i, dim_id_j/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "fv3 i location in tile")
@@ -379,7 +415,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "tile_j", NF90_INT, (/dim_id_j, dim_id_i/), varid)
+  ierr = nf90_def_var(ncid, "tile_j", NF90_INT, (/dim_id_i, dim_id_j/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "fv3 j location in tile")
@@ -387,7 +423,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "lon_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
+  ierr = nf90_def_var(ncid, "lon_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "longitude fv3 grid")
@@ -395,7 +431,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "lat_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
+  ierr = nf90_def_var(ncid, "lat_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "latitude fv3 grid")
@@ -403,7 +439,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "oro_fv3", NF90_FLOAT, (/dim_id_j_fv3, dim_id_i_fv3,dim_id_t_fv3/), varid)
+  ierr = nf90_def_var(ncid, "oro_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "orography fv3 grid")
@@ -413,7 +449,7 @@ program create_fv3_mapping
 
  if(include_source_latlon) then
 
-  ierr = nf90_def_var(ncid, "ims_lat", NF90_FLOAT, (/dim_id_j, dim_id_i/), varid)
+  ierr = nf90_def_var(ncid, "ims_lat", NF90_FLOAT, (/dim_id_i, dim_id_j/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "ims latitude")
@@ -421,7 +457,7 @@ program create_fv3_mapping
     ierr = nf90_put_att(ncid, varid, "missing_value", -9999.)
       if (ierr /= nf90_noerr) call handle_err(ierr)
 
-  ierr = nf90_def_var(ncid, "ims_lon", NF90_FLOAT, (/dim_id_j, dim_id_i/), varid)
+  ierr = nf90_def_var(ncid, "ims_lon", NF90_FLOAT, (/dim_id_i, dim_id_j/), varid)
     if (ierr /= nf90_noerr) call handle_err(ierr)
 
     ierr = nf90_put_att(ncid, varid, "long_name", "ims longitude")
@@ -462,7 +498,7 @@ program create_fv3_mapping
     if (ierr /= nf90_noerr) call handle_err(ierr)
   ierr = nf90_put_var(ncid, varid , fv3_oro)
     if (ierr /= nf90_noerr) call handle_err(ierr)
-
+  
  if(include_source_latlon) then
 
   ierr = nf90_inq_varid(ncid, "ims_lat", varid)
