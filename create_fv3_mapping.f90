@@ -8,21 +8,20 @@ program create_fv3_mapping
   character*100      :: tile_path 
   character*100      :: orog_path 
   character*20       :: otype ! orography filename stub. For atm only, oro_C${RES}, for atm/ocean oro_C${RES}.mx100
-  character*10        :: obs_source
-  integer             :: source_i_size ! size of input data 
-  integer             :: source_j_size
+  character*10       :: obs_source
+  character*100      :: ims_coord_path
 
   logical :: file_exists 
 
 ! IMS input info
   integer             :: length ! binary file recl
-  character*100      :: ims_path = "/scratch2/NCEPDEV/land/data/DA/snow_ice_cover/IMS/fix_coords/"
-  character*100      :: ims_lat_name = "imslat_4km_8bytes.bin"
-  character*100      :: ims_lon_name = "imslon_4km_8bytes.bin"
+  character*100      :: ims_lat_name
+  character*100      :: ims_lon_name 
 
   logical            :: include_source_latlon = .false.
   real, parameter    :: perturb_value         = 1.d-4    ! a small adjustment to lat/lon to find [radians]
   integer            :: tile_length
+  integer            :: source_i_size, source_j_size
   integer :: fv3_search_order(6) = (/3,1,2,5,6,4/)
   integer :: quick_search_pad = 1
 
@@ -48,7 +47,7 @@ program create_fv3_mapping
   character*20 :: dimstr
   real, parameter :: deg2rad = 3.1415926535897931/180.0
 
-  namelist/fv3_mapping_nml/ tile_dim, tile_path, orog_path, otype, obs_source, source_i_size, source_j_size
+  namelist/fv3_mapping_nml/ tile_dim, tile_path, orog_path, otype, obs_source, ims_coord_path
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Setup inputs and read namelist
@@ -68,6 +67,22 @@ program create_fv3_mapping
  open (action='read', file='fv3_mapping.nml', iostat=ierr, newunit=io)
  read (nml=fv3_mapping_nml, iostat=ierr, unit=io)
  close (io)
+ 
+ if (trim(obs_source)=="IMS4km") then 
+        source_i_size=6144
+        source_j_size=6144 
+        ims_lon_name= "imslon_4km_8bytes.bin"
+        ims_lat_name= "imslat_4km_8bytes.bin"
+ elseif (trim(obs_source) == "IMS24km" ) then 
+        source_i_size=1024
+        source_j_size=1024
+        ims_lon_name= "imslon_24km_8bytes.bin"
+        ims_lat_name= "imslat_24km_8bytes.bin"
+ else 
+        write(6,*) 'obs_source not recognised', obs_source
+        stop 10
+ endif
+
 
  tile_length= tile_dim*2 + 1
 
@@ -91,14 +106,16 @@ program create_fv3_mapping
  
   if ( obs_source(1:3)=="IMS" ) then 
       write(6,*) 'Reading in IMS coordinate info' 
+      write(6,*) trim(ims_coord_path) 
+      write(6,*) trim(ims_lat_name)
       length = source_i_size*source_j_size*8  + 1
-      filename = trim(ims_path)//trim(ims_lat_name)
+      filename = trim(ims_coord_path)//trim(ims_lat_name)
       open(10, file=filename, form='unformatted', access='direct', recl=length)
       read(10, rec=1) source_data
       source_lat = -9999.
       where(abs(source_data) <= 90.) source_lat = source_data
       
-      filename = trim(ims_path)//trim(ims_lon_name)
+      filename = trim(ims_coord_path)//trim(ims_lon_name)
       open(10, file=filename, form='unformatted', access='direct', recl=length)
       read(10, rec=1) source_data
       source_lon = -9999.
