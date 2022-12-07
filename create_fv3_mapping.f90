@@ -106,8 +106,6 @@ program create_fv3_mapping
  
   if ( obs_source(1:3)=="IMS" ) then 
       write(6,*) 'Reading in IMS coordinate info' 
-      write(6,*) trim(ims_coord_path) 
-      write(6,*) trim(ims_lat_name)
       length = source_i_size*source_j_size*8  + 1
       filename = trim(ims_coord_path)//trim(ims_lat_name)
       open(10, file=filename, form='unformatted', access='direct', recl=length)
