@@ -9,7 +9,7 @@ program create_fv3_mapping
   character*100      :: orog_path 
   character*20       :: otype ! orography filename stub. For atm only, oro_C${RES}, for atm/ocean oro_C${RES}.mx100
   character*10       :: obs_source
-  character*100      :: ims_coord_path
+  character*100      :: coord_path
 
   logical :: file_exists 
 
@@ -19,8 +19,7 @@ program create_fv3_mapping
   character*100      :: ims_lon_name 
 
 ! SMAP input info
-  character*100      :: smap_path = "/scratch2/NCEPDEV/land/data/DA/soil_moisture/SMAP/fix_coords/"  
-  character*100      :: smap_latlon_name = "NSIDC0772_LatLon_EASE2_M09km_v1.0.nc"
+  character*100      :: smap_latlon_name
 
   logical            :: include_source_latlon = .false.
   real, parameter    :: perturb_value         = 1.d-4    ! a small adjustment to lat/lon to find [radians]
@@ -42,7 +41,7 @@ program create_fv3_mapping
   integer :: tile_save, tile_i_save, tile_j_save, pad_i_min, pad_i_max, pad_j_min, pad_j_max
   logical :: found, inside_a_polygon
   real    :: lat2find, lon2find
-  integer :: ncid, dimid, varid, ierr   ! netcdf identifiers
+  integer :: ncid, dimid, varid, status   ! netcdf identifiers
   integer :: dim_id_i, dim_id_j           ! netcdf dimension identifiers
   integer :: dim_id_i_fv3, dim_id_j_fv3, dim_id_t_fv3
   integer :: i,j,t, io
@@ -51,7 +50,7 @@ program create_fv3_mapping
   character*20 :: dimstr
   real, parameter :: deg2rad = 3.1415926535897931/180.0
 
-  namelist/fv3_mapping_nml/ tile_dim, tile_path, orog_path, otype, obs_source, ims_coord_path
+  namelist/fv3_mapping_nml/ tile_dim, tile_path, orog_path, otype, obs_source, coord_path
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Setup inputs and read namelist
@@ -68,8 +67,8 @@ program create_fv3_mapping
         stop 10
  endif
 
- open (action='read', file='fv3_mapping.nml', iostat=ierr, newunit=io)
- read (nml=fv3_mapping_nml, iostat=ierr, unit=io)
+ open (action='read', file='fv3_mapping.nml', iostat=status, newunit=io)
+ read (nml=fv3_mapping_nml, iostat=status, unit=io)
  close (io)
  
  if (trim(obs_source)=="IMS4km") then 
@@ -82,7 +81,11 @@ program create_fv3_mapping
         source_j_size=1024
         ims_lon_name= "imslon_24km_8bytes.bin"
         ims_lat_name= "imslat_24km_8bytes.bin"
- else 
+ elseif ( obs_source== "SMAP9km") then
+         source_i_size=3856
+         source_j_size=1624
+         smap_latlon_name = "NSIDC0772_LatLon_EASE2_M09km_v1.0.nc"
+ else
         write(6,*) 'obs_source not recognised', obs_source
         stop 10
  endif
@@ -111,13 +114,13 @@ program create_fv3_mapping
   if ( obs_source(1:3)=="IMS" ) then 
       write(6,*) 'Reading in IMS coordinate info' 
       length = source_i_size*source_j_size*8  + 1
-      filename = trim(ims_coord_path)//trim(ims_lat_name)
+      filename = trim(coord_path)//trim(ims_lat_name)
       open(10, file=filename, form='unformatted', access='direct', recl=length)
       read(10, rec=1) source_data
       source_lat = -9999.
       where(abs(source_data) <= 90.) source_lat = source_data
       
-      filename = trim(ims_coord_path)//trim(ims_lon_name)
+      filename = trim(coord_path)//trim(ims_lon_name)
       open(10, file=filename, form='unformatted', access='direct', recl=length)
       read(10, rec=1) source_data
       source_lon = -9999.
@@ -133,26 +136,26 @@ program create_fv3_mapping
 
       write(6,*) 'Reading in SMAP coordinate info'
 
-      filename = trim(smap_path)//trim(smap_latlon_name)
+      filename = trim(coord_path)//trim(smap_latlon_name)
 
-      ierr = nf90_open(filename, NF90_NOWRITE, ncid)
-        if (ierr /= nf90_noerr) call handle_err(ierr)
+      status = nf90_open(filename, NF90_NOWRITE, ncid)
+        if (status /= nf90_noerr) call handle_err(status)
 
-      ierr = nf90_inq_varid(ncid, "longitude", varid)
-        if(ierr /= nf90_noerr) call handle_err(ierr)
+      status = nf90_inq_varid(ncid, "longitude", varid)
+        if(status /= nf90_noerr) call handle_err(status)
       
-      ierr = nf90_get_var(ncid, varid , source_lon)
-        if(ierr /= nf90_noerr) call handle_err(ierr)
+      status = nf90_get_var(ncid, varid , source_lon)
+        if(status /= nf90_noerr) call handle_err(status)
       
       where(source_lon < 0.0 .and. source_lon >= -180.0) source_lon = source_lon + 360.0
 
-      ierr = nf90_inq_varid(ncid, "latitude", varid)
-        if(ierr /= nf90_noerr) call handle_err(ierr)
+      status = nf90_inq_varid(ncid, "latitude", varid)
+        if(status /= nf90_noerr) call handle_err(status)
       
-      ierr = nf90_get_var(ncid, varid , source_lat)
-        if(ierr /= nf90_noerr) call handle_err(ierr)
+      status = nf90_get_var(ncid, varid , source_lat)
+        if(status /= nf90_noerr) call handle_err(status)
 
-      ierr = nf90_close(ncid)
+      status = nf90_close(ncid)
 
   endif
 
@@ -170,29 +173,29 @@ program create_fv3_mapping
     filename = trim(tile_path)//"/C"//trim(adjustl(dimstr))//"_grid"//tilestr
     write(6,*) 'Reading in tile file' , filename
 
-    ierr = nf90_open(filename, NF90_NOWRITE, ncid)
-      if (ierr /= nf90_noerr) call handle_err(ierr)
+    status = nf90_open(filename, NF90_NOWRITE, ncid)
+      if (status /= nf90_noerr) call handle_err(status)
 
-    ierr = nf90_inq_varid(ncid, "x", varid)
-    ierr = nf90_get_var(ncid, varid , fv3_lon(:,:,itile))
+    status = nf90_inq_varid(ncid, "x", varid)
+    status = nf90_get_var(ncid, varid , fv3_lon(:,:,itile))
   
-    ierr = nf90_inq_varid(ncid, "y", varid)
-    ierr = nf90_get_var(ncid, varid , fv3_lat(:,:,itile))
+    status = nf90_inq_varid(ncid, "y", varid)
+    status = nf90_get_var(ncid, varid , fv3_lat(:,:,itile))
 
-    ierr = nf90_close(ncid)
+    status = nf90_close(ncid)
 
     ! get orography
 
     filename = trim(orog_path)//"/"//trim(otype)//tilestr
     write(6,*) 'Reading in orog file' , filename
 
-    ierr = nf90_open(filename, NF90_NOWRITE, ncid)
-      if (ierr /= nf90_noerr) call handle_err(ierr)
+    status = nf90_open(filename, NF90_NOWRITE, ncid)
+      if (status /= nf90_noerr) call handle_err(status)
 
-    ierr = nf90_inq_varid(ncid, "orog_filt", varid)
-    ierr = nf90_get_var(ncid, varid , fv3_oro(:,:,itile))
+    status = nf90_inq_varid(ncid, "orog_filt", varid)
+    status = nf90_get_var(ncid, varid , fv3_oro(:,:,itile))
 
-    ierr = nf90_close(ncid)
+    status = nf90_close(ncid)
 
   end do
 
@@ -379,141 +382,141 @@ program create_fv3_mapping
   filename=trim(obs_source)//"_to_FV3_mapping."//trim(otype)//".nc"
   write(6,*) 'writing indexes to ', trim(filename)
 
-  ierr = nf90_create(filename, NF90_CLOBBER, ncid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_create(filename, NF90_CLOBBER, ncid)
+    if (status /= nf90_noerr) call handle_err(status)
 
 ! Define dimensions in the file.
 
-  ierr = nf90_def_dim(ncid, "idim"   , source_i_size , dim_id_i)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_def_dim(ncid, "jdim"   , source_j_size , dim_id_j)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_def_dim(ncid, "idim"   , source_i_size , dim_id_i)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_def_dim(ncid, "jdim"   , source_j_size , dim_id_j)
+    if (status /= nf90_noerr) call handle_err(status)
 
 ! fv3 lat/lon
-  ierr = nf90_def_dim(ncid, "idim_fv3"   , tile_dim , dim_id_i_fv3)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_def_dim(ncid, "jdim_fv3"   , tile_dim , dim_id_j_fv3)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_def_dim(ncid, "tdim_fv3"   , 6 , dim_id_t_fv3)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_def_dim(ncid, "idim_fv3"   , tile_dim , dim_id_i_fv3)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_def_dim(ncid, "jdim_fv3"   , tile_dim , dim_id_j_fv3)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_def_dim(ncid, "tdim_fv3"   , 6 , dim_id_t_fv3)
+    if (status /= nf90_noerr) call handle_err(status)
   
 ! Define variables in the file.
 
-  ierr = nf90_def_var(ncid, "tile", NF90_INT, (/dim_id_i, dim_id_j/), varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_def_var(ncid, "tile", NF90_INT, (/dim_id_i, dim_id_j/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
 
-    ierr = nf90_put_att(ncid, varid, "long_name", "fv3 tile location")
-      if (ierr /= nf90_noerr) call handle_err(ierr)
-    ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
-      if (ierr /= nf90_noerr) call handle_err(ierr)
+    status = nf90_put_att(ncid, varid, "long_name", "fv3 tile location")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999)
+      if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_def_var(ncid, "tile_i", NF90_INT, (/dim_id_i, dim_id_j/), varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_def_var(ncid, "tile_i", NF90_INT, (/dim_id_i, dim_id_j/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
 
-    ierr = nf90_put_att(ncid, varid, "long_name", "fv3 i location in tile")
-      if (ierr /= nf90_noerr) call handle_err(ierr)
-    ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
-      if (ierr /= nf90_noerr) call handle_err(ierr)
+    status = nf90_put_att(ncid, varid, "long_name", "fv3 i location in tile")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999)
+      if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_def_var(ncid, "tile_j", NF90_INT, (/dim_id_i, dim_id_j/), varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_def_var(ncid, "tile_j", NF90_INT, (/dim_id_i, dim_id_j/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
 
-    ierr = nf90_put_att(ncid, varid, "long_name", "fv3 j location in tile")
-      if (ierr /= nf90_noerr) call handle_err(ierr)
-    ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
-      if (ierr /= nf90_noerr) call handle_err(ierr)
+    status = nf90_put_att(ncid, varid, "long_name", "fv3 j location in tile")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999)
+      if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_def_var(ncid, "lon_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_def_var(ncid, "lon_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
 
-    ierr = nf90_put_att(ncid, varid, "long_name", "longitude fv3 grid")
-      if (ierr /= nf90_noerr) call handle_err(ierr)
-    ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
-      if (ierr /= nf90_noerr) call handle_err(ierr)
+    status = nf90_put_att(ncid, varid, "long_name", "longitude fv3 grid")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999)
+      if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_def_var(ncid, "lat_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_def_var(ncid, "lat_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
 
-    ierr = nf90_put_att(ncid, varid, "long_name", "latitude fv3 grid")
-      if (ierr /= nf90_noerr) call handle_err(ierr)
-    ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
-      if (ierr /= nf90_noerr) call handle_err(ierr)
+    status = nf90_put_att(ncid, varid, "long_name", "latitude fv3 grid")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999)
+      if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_def_var(ncid, "oro_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_def_var(ncid, "oro_fv3", NF90_FLOAT, (/dim_id_i_fv3, dim_id_j_fv3,dim_id_t_fv3/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
 
-    ierr = nf90_put_att(ncid, varid, "long_name", "orography fv3 grid")
-      if (ierr /= nf90_noerr) call handle_err(ierr)
-    ierr = nf90_put_att(ncid, varid, "missing_value", -9999)
-      if (ierr /= nf90_noerr) call handle_err(ierr)
+    status = nf90_put_att(ncid, varid, "long_name", "orography fv3 grid")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999)
+      if (status /= nf90_noerr) call handle_err(status)
 
  if(include_source_latlon) then
 
-  ierr = nf90_def_var(ncid, "ims_lat", NF90_FLOAT, (/dim_id_i, dim_id_j/), varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_def_var(ncid, "ims_lat", NF90_FLOAT, (/dim_id_i, dim_id_j/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
 
-    ierr = nf90_put_att(ncid, varid, "long_name", "ims latitude")
-      if (ierr /= nf90_noerr) call handle_err(ierr)
-    ierr = nf90_put_att(ncid, varid, "missing_value", -9999.)
-      if (ierr /= nf90_noerr) call handle_err(ierr)
+    status = nf90_put_att(ncid, varid, "long_name", "ims latitude")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999.)
+      if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_def_var(ncid, "ims_lon", NF90_FLOAT, (/dim_id_i, dim_id_j/), varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_def_var(ncid, "ims_lon", NF90_FLOAT, (/dim_id_i, dim_id_j/), varid)
+    if (status /= nf90_noerr) call handle_err(status)
 
-    ierr = nf90_put_att(ncid, varid, "long_name", "ims longitude")
-      if (ierr /= nf90_noerr) call handle_err(ierr)
-    ierr = nf90_put_att(ncid, varid, "missing_value", -9999.)
-      if (ierr /= nf90_noerr) call handle_err(ierr)
+    status = nf90_put_att(ncid, varid, "long_name", "ims longitude")
+      if (status /= nf90_noerr) call handle_err(status)
+    status = nf90_put_att(ncid, varid, "missing_value", -9999.)
+      if (status /= nf90_noerr) call handle_err(status)
   
  end if
 
-  ierr = nf90_enddef(ncid)
+  status = nf90_enddef(ncid)
 
-  ierr = nf90_inq_varid(ncid, "tile", varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_put_var(ncid, varid , lookup_tile)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_inq_varid(ncid, "tile", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , lookup_tile)
+    if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_inq_varid(ncid, "tile_i", varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_put_var(ncid, varid , lookup_i)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_inq_varid(ncid, "tile_i", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , lookup_i)
+    if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_inq_varid(ncid, "tile_j", varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_put_var(ncid, varid , lookup_j)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_inq_varid(ncid, "tile_j", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , lookup_j)
+    if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_inq_varid(ncid, "lon_fv3", varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_put_var(ncid, varid , fv3_lon_cnt)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_inq_varid(ncid, "lon_fv3", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , fv3_lon_cnt)
+    if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_inq_varid(ncid, "lat_fv3", varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_put_var(ncid, varid , fv3_lat_cnt)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_inq_varid(ncid, "lat_fv3", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , fv3_lat_cnt)
+    if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_inq_varid(ncid, "oro_fv3", varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_put_var(ncid, varid , fv3_oro)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_inq_varid(ncid, "oro_fv3", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , fv3_oro)
+    if (status /= nf90_noerr) call handle_err(status)
   
  if(include_source_latlon) then
 
-  ierr = nf90_inq_varid(ncid, "ims_lat", varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_put_var(ncid, varid , source_lat)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_inq_varid(ncid, "ims_lat", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , source_lat)
+    if (status /= nf90_noerr) call handle_err(status)
 
-  ierr = nf90_inq_varid(ncid, "ims_lon", varid)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
-  ierr = nf90_put_var(ncid, varid , source_lon)
-    if (ierr /= nf90_noerr) call handle_err(ierr)
+  status = nf90_inq_varid(ncid, "ims_lon", varid)
+    if (status /= nf90_noerr) call handle_err(status)
+  status = nf90_put_var(ncid, varid , source_lon)
+    if (status /= nf90_noerr) call handle_err(status)
   
  end if
 
- ierr = nf90_close(ncid)
+ status = nf90_close(ncid)
 
 end program
 
@@ -646,12 +649,12 @@ end program
     
   end FUNCTION inside_a_polygon
 
-  subroutine handle_err(ierr)
+  subroutine handle_err(status)
     use netcdf
-    integer, intent ( in) :: ierr
+    integer, intent ( in) :: status
  
-    if(ierr /= nf90_noerr) then
-      print *, trim(nf90_strerror(ierr))
+    if(status /= nf90_noerr) then
+      print *, trim(nf90_strerror(status))
       stop "Stopped"
     end if
   end subroutine handle_err
