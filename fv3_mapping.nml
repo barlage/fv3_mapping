@@ -1,0 +1,8 @@
+&fv3_mapping_nml 
+ tile_dim=384
+ otype="oro_C384.mx025"
+ orog_path="/scratch1/NCEPDEV/nems/emc.nemspara/RT/NEMSfv3gfs/input-data-20220414/FV3_fix_tiled/C384/"
+ tile_path="/scratch2/NCEPDEV/land/data/fix/C384/"
+ obs_source="IMS24km" 
+ coord_path="/scratch2/NCEPDEV/land/data/DA/snow_ice_cover/IMS/fix_coords/"
+/
